@@ -1,86 +1,97 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from io import StringIO
-from console import HBNBCommand  # Assuming this import is necessary
+import os
+import sys
+from console import HBNBCommand
 
-class TestConsole(unittest.TestCase):
+class ConsoleTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.console = HBNBCommand()
+        self.cmd = HBNBCommand()
 
     def tearDown(self):
-        del self.console
+        del self.cmd
 
-    def assertConsoleOutputContains(self, command, expected_output):
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.console.onecmd(command)
-            console_output = mock_stdout.getvalue().strip()
-            self.assertIn(expected_output, console_output)
+    @patch('sys.stdout', new_callable=StringIO)
+    def test_help_cmd(self, mock_stdout):
+        with patch('sys.stdout', new=StringIO()) as f:
+            self.cmd.onecmd("help")
+            self.assertTrue("Documented commands (type help <topic>):" in f.getvalue())
 
-    def test_help_command(self):
-        self.assertConsoleOutputContains("help", "Documented commands (type help <topic>):")
-
-    def test_quit_command(self):
+    @patch('sys.stdout', new_callable=StringIO)
+    def test_quit_cmd(self, mock_stdout):
         with self.assertRaises(SystemExit):
-            self.console.onecmd("quit")
+            self.cmd.onecmd("quit")
 
-    def test_emptyline_command(self):
-        self.assertConsoleOutputContains("\n", "")
+    def test_empty_cmd(self):
+        with patch('sys.stdout', new=StringIO()) as f:
+            self.cmd.onecmd("\n")
+            self.assertEqual("", f.getvalue().strip())
 
-    def test_create_command(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
+    def test_create_cmd(self):
+        with patch('sys.stdout', new=StringIO()) as f:
+            self.cmd.onecmd("create BaseModel")
+            self.assertTrue(len(f.getvalue().strip()) == 36)
 
-    def test_show_command(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        obj_id = self.console._last_id
-        self.assertConsoleOutputContains(f"show BaseModel {obj_id}", obj_id)
+    def test_show_cmd(self):
+        with patch('sys.stdout', new=StringIO()) as f:
+            self.cmd.onecmd("create BaseModel")
+            obj_id = f.getvalue().strip()
+            self.cmd.onecmd(f"show BaseModel {obj_id}")
+            self.assertTrue(obj_id in f.getvalue())
 
-    def test_destroy_command(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        obj_id = self.console._last_id
-        self.assertConsoleOutputContains(f"destroy BaseModel {obj_id}", "")
-        self.assertConsoleOutputContains(f"show BaseModel {obj_id}", "** no instance found **")
+    def test_destroy_cmd(self):
+        with patch('sys.stdout', new=StringIO()) as f:
+            self.cmd.onecmd("create BaseModel")
+            obj_id = f.getvalue().strip()
+            self.cmd.onecmd(f"destroy BaseModel {obj_id}")
+            self.cmd.onecmd(f"show BaseModel {obj_id}")
+            self.assertEqual("** no instance found **", f.getvalue().strip())
 
-    def test_all_command(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("all BaseModel", "BaseModel")
+    def test_all_cmd(self):
+        with patch('sys.stdout', new=StringIO()) as f:
+            self.cmd.onecmd("create BaseModel")
+            self.cmd.onecmd("create BaseModel")
+            self.cmd.onecmd("all BaseModel")
+            output = f.getvalue().strip()
+            self.assertTrue("BaseModel" in output)
+            self.assertTrue(len(output.split('\n')) == 2)
 
-    def test_update_command(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        obj_id = self.console._last_id
-        self.assertConsoleOutputContains(f"update BaseModel {obj_id} name 'test'", "")
-        self.assertConsoleOutputContains(f"show BaseModel {obj_id}", "'name': 'test'")
+    def test_update_cmd(self):
+        with patch('sys.stdout', new=StringIO()) as f:
+            self.cmd.onecmd("create BaseModel")
+            obj_id = f.getvalue().strip()
+            self.cmd.onecmd(f"update BaseModel {obj_id} name 'test'")
+            self.cmd.onecmd(f"show BaseModel {obj_id}")
+            self.assertTrue("'name': 'test'" in f.getvalue())
 
-    def test_count_command(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("count BaseModel", "3")
+    @patch('sys.stdout', new_callable=StringIO)
+    def test_count_cmd(self, mock_stdout):
+        self.cmd.onecmd("create BaseModel")
+        self.cmd.onecmd("create BaseModel")
+        self.cmd.onecmd("create BaseModel")
+        self.cmd.onecmd("count BaseModel")
+        self.assertEqual("3", mock_stdout.getvalue().strip())
 
-    def test_non_existing_class_show(self):
-        self.assertConsoleOutputContains("show MyModel", "** class doesn't exist **")
+    @patch('sys.stdout', new_callable=StringIO)
+    def test_class_all_method(self, mock_stdout):
+        self.cmd.onecmd("create BaseModel")
+        self.cmd.onecmd("create BaseModel")
+        self.cmd.onecmd("create BaseModel")
+        self.cmd.onecmd("BaseModel.all()")
+        self.assertTrue("BaseModel" in mock_stdout.getvalue().strip())
 
-    def test_non_existing_class_destroy(self):
-        self.assertConsoleOutputContains("destroy MyModel", "** class doesn't exist **")
+    def test_invalid_class_all_method(self):
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            self.cmd.onecmd("BaseModel.all()")
+            self.assertEqual("** class doesn't exist **", mock_stdout.getvalue().strip())
 
-    def test_non_existing_class_update(self):
-        self.assertConsoleOutputContains("update MyModel", "** class doesn't exist **")
+    def test_invalid_class_show(self):
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            self.cmd.onecmd("show MyModel")
+            self.assertEqual("** class doesn't exist **", mock_stdout.getvalue().strip())
 
-    def test_non_existing_class_count(self):
-        self.assertConsoleOutputContains("count MyModel", "** class doesn't exist **")
-
-    def test_non_existing_instance_show(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("show BaseModel 12345", "** no instance found **")
-
-    def test_non_existing_instance_destroy(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("destroy BaseModel 12345", "** no instance found **")
-
-    def test_non_existing_instance_update(self):
-        self.assertConsoleOutputContains("create BaseModel", "")
-        self.assertConsoleOutputContains("update BaseModel 12345", "** no instance found **")
-
-if __name__ == '__main__':
-    unittest.main()
+    def test_invalid_class_destroy(self):
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            self.cmd.onecmd("destroy MyModel")
