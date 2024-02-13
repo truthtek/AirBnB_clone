@@ -6,6 +6,17 @@ import uuid
 from datetime import datetime
 
 
+"""
+Initialization module for models package
+"""
+from models.engine.file_storage import FileStorage
+
+# Create a unique FileStorage instance
+storage = FileStorage()
+
+# Load existing data from the JSON file
+storage.reload()
+
 class BaseModel:
     """
     BaseModel class that defines common attributes/methods for other classes
