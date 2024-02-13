@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-"""Defines the HBnB console."""
 import cmd
 import re
 from shlex import split
@@ -13,7 +11,8 @@ from models.amenity import Amenity
 from models.review import Review
 
 
-def parse(arg):
+def parse_arguments(arg):
+    """Parse command arguments."""
     curly_braces = re.search(r"\{(.*?)\}", arg)
     brackets = re.search(r"\[(.*?)\]", arg)
     if curly_braces is None:
@@ -32,11 +31,7 @@ def parse(arg):
 
 
 class HBNBCommand(cmd.Cmd):
-    """Defines the HolbertonBnB command interpreter.
-
-    Attributes:
-        prompt (str): The command prompt.
-    """
+    """HolbertonBnB command interpreter."""
 
     prompt = "(hbnb) "
     __classes = {
@@ -54,7 +49,7 @@ class HBNBCommand(cmd.Cmd):
         pass
 
     def default(self, arg):
-        """Default behavior for cmd module when input is invalid"""
+        """Default behavior for invalid commands."""
         argdict = {
             "all": self.do_all,
             "show": self.do_show,
@@ -84,125 +79,85 @@ class HBNBCommand(cmd.Cmd):
         return True
 
     def do_create(self, arg):
-        """Usage: create <class>
-        Create a new class instance and print its id.
-        """
-        argl = parse(arg)
+        """Create a new instance of a class."""
+        argl = parse_arguments(arg)
         if len(argl) == 0:
             print("** class name missing **")
-        elif argl[0] not in HBNBCommand.__classes:
+        elif argl[0] not in self.__classes:
             print("** class doesn't exist **")
         else:
-            print(eval(argl[0])().id)
+            instance = eval(argl[0])()
+            print(instance.id)
             storage.save()
 
     def do_show(self, arg):
-        """Usage: show <class> <id> or <class>.show(<id>)
-        Display the string representation of a class instance of a given id.
-        """
-        argl = parse(arg)
-        objdict = storage.all()
-        if len(argl) == 0:
-            print("** class name missing **")
-        elif argl[0] not in HBNBCommand.__classes:
+        """Show instance information."""
+        argl = parse_arguments(arg)
+        obj_dict = storage.all()
+        if len(argl) < 2:
+            print("** class name missing **" if len(argl) == 0 else "** instance id missing **")
+        elif argl[0] not in self.__classes:
             print("** class doesn't exist **")
-        elif len(argl) == 1:
-            print("** instance id missing **")
-        elif "{}.{}".format(argl[0], argl[1]) not in objdict:
+        elif f"{argl[0]}.{argl[1]}" not in obj_dict:
             print("** no instance found **")
         else:
-            print(objdict["{}.{}".format(argl[0], argl[1])])
+            print(obj_dict[f"{argl[0]}.{argl[1]}"])
 
     def do_destroy(self, arg):
-        """Usage: destroy <class> <id> or <class>.destroy(<id>)
-        Delete a class instance of a given id."""
-        argl = parse(arg)
-        objdict = storage.all()
-        if len(argl) == 0:
-            print("** class name missing **")
-        elif argl[0] not in HBNBCommand.__classes:
+        """Delete an instance."""
+        argl = parse_arguments(arg)
+        obj_dict = storage.all()
+        if len(argl) < 2:
+            print("** class name missing **" if len(argl) == 0 else "** instance id missing **")
+        elif argl[0] not in self.__classes:
             print("** class doesn't exist **")
-        elif len(argl) == 1:
-            print("** instance id missing **")
-        elif "{}.{}".format(argl[0], argl[1]) not in objdict.keys():
+        elif f"{argl[0]}.{argl[1]}" not in obj_dict:
             print("** no instance found **")
         else:
-            del objdict["{}.{}".format(argl[0], argl[1])]
+            del obj_dict[f"{argl[0]}.{argl[1]}"]
             storage.save()
 
     def do_all(self, arg):
-        """Usage: all or all <class> or <class>.all()
-        Display string representations of all instances of a given class.
-        If no class is specified, displays all instantiated objects."""
-        argl = parse(arg)
-        if len(argl) > 0 and argl[0] not in HBNBCommand.__classes:
-            print("** class doesn't exist **")
-        else:
-            objl = []
-            for obj in storage.all().values():
-                if len(argl) > 0 and argl[0] == obj.__class__.__name__:
-                    objl.append(obj.__str__())
-                elif len(argl) == 0:
-                    objl.append(obj.__str__())
-            print(objl)
+        """Show all instances."""
+        argl = parse_arguments(arg)
+        obj_list = []
+        for obj in storage.all().values():
+            if not argl or obj.__class__.__name__ == argl[0]:
+                obj_list.append(str(obj))
+        print(obj_list)
 
     def do_count(self, arg):
-        """Usage: count <class> or <class>.count()
-        Retrieve the number of instances of a given class."""
-        argl = parse(arg)
-        count = 0
-        for obj in storage.all().values():
-            if argl[0] == obj.__class__.__name__:
-                count += 1
+        """Count instances."""
+        argl = parse_arguments(arg)
+        count = sum(1 for obj in storage.all().values() if obj.__class__.__name__ == argl[0])
         print(count)
 
     def do_update(self, arg):
-        """Usage: update <class> <id> <attribute_name> <attribute_value> or
-       <class>.update(<id>, <attribute_name>, <attribute_value>) or
-       <class>.update(<id>, <dictionary>)
-        Update a class instance of a given id by adding or updating
-        a given attribute key/value pair or dictionary."""
-        argl = parse(arg)
-        objdict = storage.all()
+        """Update an instance."""
+        argl = parse_arguments(arg)
+        obj_dict = storage.all()
 
-        if len(argl) == 0:
-            print("** class name missing **")
-            return False
-        if argl[0] not in HBNBCommand.__classes:
+        if len(argl) < 2:
+            print("** class name missing **" if len(argl) == 0 else "** instance id missing **")
+            return
+        if argl[0] not in self.__classes:
             print("** class doesn't exist **")
-            return False
-        if len(argl) == 1:
-            print("** instance id missing **")
-            return False
-        if "{}.{}".format(argl[0], argl[1]) not in objdict.keys():
+            return
+        if f"{argl[0]}.{argl[1]}" not in obj_dict:
             print("** no instance found **")
-            return False
-        if len(argl) == 2:
-            print("** attribute name missing **")
-            return False
-        if len(argl) == 3:
-            try:
-                type(eval(argl[2])) != dict
-            except NameError:
-                print("** value missing **")
-                return False
+            return
 
-        if len(argl) == 4:
-            obj = objdict["{}.{}".format(argl[0], argl[1])]
-            if argl[2] in obj.__class__.__dict__.keys():
-                valtype = type(obj.__class__.__dict__[argl[2]])
-                obj.__dict__[argl[2]] = valtype(argl[3])
-            else:
-                obj.__dict__[argl[2]] = argl[3]
-        elif type(eval(argl[2])) == dict:
-            obj = objdict["{}.{}".format(argl[0], argl[1])]
-            for k, v in eval(argl[2]).items():
-                if (k in obj.__class__.__dict__.keys() and
-                        type(obj.__class__.__dict__[k]) in {str, int, float}):
-                    valtype = type(obj.__class__.__dict__[k])
-                    obj.__dict__[k] = valtype(v)
-                else:
-                    obj.__dict__[k] = v
+        instance = obj_dict[f"{argl[0]}.{argl[1]}"]
+        if len(argl) < 3:
+            print("** attribute name missing **")
+            return
+        if len(argl) < 4:
+            print("** value missing **")
+            return
+
+        attribute_name = argl[2]
+        attribute_value = argl[3]
+        setattr(instance, attribute_name, attribute_value)
         storage.save()
 
 
